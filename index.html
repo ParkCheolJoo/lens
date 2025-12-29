@@ -182,7 +182,7 @@
         <div class="legend">
             <div class="legend-item"><div class="color-box bg-red-500"></div>물체 (Object)</div>
             <div class="legend-item"><div class="color-box bg-blue-400"></div>상 (Image)</div>
-            <div class="legend-item"><div class="color-box bg-yellow-300"></div>광선 (4지점 추적)</div>
+            <div class="legend-item"><div class="color-box bg-yellow-300"></div>광선 (4색 구분)</div>
         </div>
     </div>
 
@@ -207,7 +207,8 @@
     cameraTop.lookAt(0, 0, 0);
 
     const cameraEye = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
-    cameraEye.position.set(100, 0, 0);
+    // [Updated] Moved closer (100 -> 66) to make lens appear ~1.5x larger in observer view
+    cameraEye.position.set(66, 0, 0); 
     cameraEye.lookAt(0, 0, 0);
     
     // Controls
