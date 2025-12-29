@@ -269,6 +269,12 @@
     const rayMat = new THREE.LineBasicMaterial({ color: 0xffdd00, linewidth: 1, transparent: true, opacity: 0.6 }); // Ray opacity lowered for multiray
     const virtualRayMat = new THREE.LineDashedMaterial({ color: 0xaaaaaa, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 });
 
+    // [New] Multi-color materials for 3D Knot rays
+    // Colors: Red, Lime, Cyan, Magenta
+    const rayColors = [0xff4444, 0x44ff44, 0x44ffff, 0xff44ff];
+    const rayMaterials = rayColors.map(c => new THREE.LineBasicMaterial({ color: c, linewidth: 1, transparent: true, opacity: 0.7 }));
+    const virtualRayMaterials = rayColors.map(c => new THREE.LineDashedMaterial({ color: c, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 }));
+
     function create3DArrow(material, name) {
         const group = new THREE.Group();
         const stemGeo = new THREE.CylinderGeometry(0.3, 0.3, 1, 16);
@@ -585,7 +591,7 @@
         }
 
         // Trace for each point
-        sourcePointsLocal.forEach(localPt => {
+        sourcePointsLocal.forEach((localPt, index) => {
             // Convert to World Pos
             const objTip = new THREE.Vector3().copy(localPt).add(objPos);
             
@@ -606,15 +612,28 @@
                 imgTip = new THREE.Vector3().copy(imgCenter).add(imgOffset);
             }
             
-            draw3DRays(objTip, imgTip, f_val, isReal, isParallel);
+            // Pass index to select color. -1 means default yellow (Arrow)
+            const colorIndex = (currentObjType === 'arrow') ? -1 : index;
+            draw3DRays(objTip, imgTip, f_val, isReal, isParallel, colorIndex);
         });
         
         updateLayers();
     }
 
-    // [New] Generic Trace Function for a single point pair
-    function draw3DRays(objTip, imgTip, f_val, isReal, isParallel) {
+    // [Updated] Generic Trace Function now accepts colorIndex
+    function draw3DRays(objTip, imgTip, f_val, isReal, isParallel, colorIndex) {
         
+        // Select Materials based on colorIndex
+        let rMat, vMat;
+        if (colorIndex === -1) {
+            rMat = rayMat; // Default Yellow
+            vMat = virtualRayMat;
+        } else {
+            // Cycle through defined colors if more than 4 points
+            rMat = rayMaterials[colorIndex % rayMaterials.length];
+            vMat = virtualRayMaterials[colorIndex % virtualRayMaterials.length];
+        }
+
         // Ray 1: Parallel to Axis -> Refracts through Focus
         const lensHit1 = new THREE.Vector3(0, objTip.y, objTip.z);
         
@@ -623,28 +642,28 @@
             const pts1 = [objTip.clone(), lensHit1.clone()];
             const dir1 = new THREE.Vector3().subVectors(focusPoint, lensHit1).normalize();
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
-            addLine(pts1, rayMat);
+            addLine(pts1, rMat); // Use chosen material
             
             if (!isReal && !isParallel) {
                 const vPts1 = [imgTip.clone(), lensHit1.clone()];
-                addLine(vPts1, virtualRayMat, true);
+                addLine(vPts1, vMat, true); // Use chosen material
             }
         } else {
             const focusPoint = new THREE.Vector3(f_val, 0, 0); 
             const pts1 = [objTip.clone(), lensHit1.clone()];
             const dir1 = new THREE.Vector3().subVectors(lensHit1, focusPoint).normalize(); // Diverge
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
-            addLine(pts1, rayMat);
+            addLine(pts1, rMat);
             
             const vPts1 = [focusPoint.clone(), lensHit1.clone()];
-            addLine(vPts1, virtualRayMat, true);
+            addLine(vPts1, vMat, true);
         }
 
         // Ray 2: Center (Undeviated)
         const center = new THREE.Vector3(0,0,0);
         const dir2 = new THREE.Vector3().subVectors(center, objTip).normalize();
         const pts2 = [objTip.clone(), dir2.multiplyScalar(200).add(objTip)];
-        addLine(pts2, rayMat);
+        addLine(pts2, rMat);
         
         // (Ray 3 omitted for multi-point to prevent visual overload, 2 rays per point is sufficient for 3D demo)
     }
