@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 렌즈 시뮬레이터 (볼록/오목)</title>
-
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
-    <meta name="theme-color" content="#4ade80">
-
+    <title>3D 렌즈 시뮬레이터</title>
+    
+    <!-- 필수 라이브러리 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; background: #050505; color: white; }
         #canvas-container { width: 100vw; height: 100vh; display: block; }
-
+        
+        /* UI 패널 스타일 */
         .ui-panel {
             position: absolute;
             top: 20px;
@@ -23,7 +22,7 @@
             background: rgba(20, 20, 20, 0.9);
             padding: 15px;
             border-radius: 12px;
-            width: 250px;
+            width: 260px; /* 너비 약간 증가 */
             max-height: 90vh;
             overflow-y: auto;
             backdrop-filter: blur(8px);
@@ -32,7 +31,7 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5);
             z-index: 50;
         }
-
+        
         .view-label {
             position: absolute;
             padding: 6px 12px;
@@ -49,9 +48,10 @@
         }
         #label-main { top: 20px; right: 20px; }
         #label-eye { bottom: 20px; right: 20px; }
-
+        
         .slider-group { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #333; }
         .slider-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8em; color: #ccc; }
+        
         input[type=range] { 
             width: 100%; cursor: pointer; accent-color: #4ade80; 
             height: 4px; background: #444; border-radius: 2px;
@@ -62,18 +62,19 @@
             width: 14px; height: 14px; background: #4ade80; border-radius: 50%;
         }
 
-        /* Radio Button Styling */
-        .lens-selector {
+        /* 선택 버튼 스타일 (공통) */
+        .selector-row {
             display: flex;
             background: #333;
             border-radius: 8px;
             padding: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+            gap: 4px;
         }
-        .lens-option {
+        .selector-opt {
             flex: 1;
             text-align: center;
-            padding: 6px;
+            padding: 6px 2px;
             cursor: pointer;
             border-radius: 6px;
             font-weight: bold;
@@ -81,16 +82,16 @@
             transition: all 0.2s;
             color: #888;
         }
-        .lens-option.active {
+        .selector-opt.active {
             background: #4ade80;
             color: #000;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-
+        
         .legend { margin-top: 10px; font-size: 0.8em; color: #aaa; }
         .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
         .color-box { width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; }
-
+        
         #divider {
             position: absolute;
             left: 0;
@@ -114,11 +115,19 @@
 
     <div class="ui-panel">
         <h2 class="text-lg font-bold mb-3 text-green-400 border-b border-gray-600 pb-2">3D 렌즈 시뮬레이터</h2>
-
+        
         <!-- Lens Selector -->
-        <div class="lens-selector">
-            <div id="btn-convex" class="lens-option active">볼록 (Convex)</div>
-            <div id="btn-concave" class="lens-option">오목 (Concave)</div>
+        <div class="font-bold text-xs text-white mb-1">렌즈 종류 (Lens Type)</div>
+        <div class="selector-row">
+            <div id="btn-convex" class="selector-opt active">볼록 (Convex)</div>
+            <div id="btn-concave" class="selector-opt">오목 (Concave)</div>
+        </div>
+
+        <!-- Object Selector -->
+        <div class="font-bold text-xs text-white mb-1">물체 모양 (Object Shape)</div>
+        <div class="selector-row">
+            <div id="btn-obj-arrow" class="selector-opt active">화살표 (Arrow)</div>
+            <div id="btn-obj-knot" class="selector-opt">3D 매듭 (Knot)</div>
         </div>
 
         <div class="slider-group">
@@ -129,7 +138,7 @@
             </div>
             <input type="range" id="input-focal" min="10" max="40" step="0.5" value="15">
             <div id="text-lens-desc" class="text-xs text-gray-500 mt-1">작을수록 렌즈가 두꺼워짐 (강한 굴절)</div>
-
+            
             <div class="slider-label mt-2">
                 <span>물체 크기 (Size)</span>
                 <span id="val-height" class="font-mono text-green-300">5.0</span>
@@ -139,13 +148,13 @@
 
         <div class="slider-group">
             <div class="font-bold text-sm text-white mb-2">🕹️ 위치 제어 (Position)</div>
-
+            
             <div class="slider-label">
                 <span>거리 (Distance X)</span>
                 <span id="val-dist" class="font-mono text-green-300">30.0</span>
             </div>
             <input type="range" id="input-dist" min="5" max="60" step="0.5" value="25">
-
+            
             <div class="slider-label mt-2">
                 <span>높이 (Vertical Y)</span>
                 <span id="val-offset-y" class="font-mono text-green-300">0.0</span>
@@ -173,11 +182,12 @@
         <div class="legend">
             <div class="legend-item"><div class="color-box bg-red-500"></div>물체 (Object)</div>
             <div class="legend-item"><div class="color-box bg-blue-400"></div>상 (Image)</div>
-            <div class="legend-item"><div class="color-box bg-yellow-300"></div>3D 광선 경로</div>
+            <div class="legend-item"><div class="color-box bg-yellow-300"></div>광선 (4지점 추적)</div>
         </div>
     </div>
 
-<script>
+    <!-- 로직 스크립트 -->
+    <script>
     // --- 1. Scene Setup ---
     const container = document.getElementById('canvas-container');
     const divider = document.getElementById('divider');
@@ -199,7 +209,7 @@
     const cameraEye = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
     cameraEye.position.set(100, 0, 0);
     cameraEye.lookAt(0, 0, 0);
-
+    
     // Controls
     const controls = new THREE.OrbitControls(cameraTop, renderer.domElement);
     controls.enableDamping = true;
@@ -214,7 +224,7 @@
     dirLight.position.set(20, 50, 30);
     dirLight.layers.enableAll();
     scene.add(dirLight);
-
+    
     const rimLight = new THREE.PointLight(0x44aaff, 0.5);
     rimLight.position.set(-20, 0, -20);
     rimLight.layers.enableAll();
@@ -246,7 +256,7 @@
         clearcoat: 1.0,
         side: THREE.DoubleSide
     });
-
+    
     const lensRimMat = new THREE.MeshStandardMaterial({
         color: 0x445566,
         roughness: 0.4,
@@ -255,9 +265,9 @@
 
     const objectMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x440000 });
     const imageMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, emissive: 0x001144, transparent: true, opacity: 0.9 });
-
-    const rayMat = new THREE.LineBasicMaterial({ color: 0xffdd00, linewidth: 2 });
-    const virtualRayMat = new THREE.LineDashedMaterial({ color: 0xaaaaaa, dashSize: 2, gapSize: 1, scale: 1 });
+    
+    const rayMat = new THREE.LineBasicMaterial({ color: 0xffdd00, linewidth: 1, transparent: true, opacity: 0.6 }); // Ray opacity lowered for multiray
+    const virtualRayMat = new THREE.LineDashedMaterial({ color: 0xaaaaaa, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 });
 
     function create3DArrow(material, name) {
         const group = new THREE.Group();
@@ -274,11 +284,21 @@
         return group;
     }
 
+    function create3DKnot(material, name) {
+        // Torus Knot for "Complex 3D Object"
+        const geo = new THREE.TorusKnotGeometry(1, 0.3, 64, 16);
+        const mesh = new THREE.Mesh(geo, material);
+        const group = new THREE.Group();
+        group.add(mesh);
+        group.name = name;
+        return group;
+    }
+
     // --- LENS GEOMETRIES ---
     const lensGroup = new THREE.Group();
     scene.add(lensGroup);
 
-    // 1. Convex Lens (Sphere)
+    // 1. Convex Lens
     const convexGeo = new THREE.SphereGeometry(14, 64, 32);
     const convexMesh = new THREE.Mesh(convexGeo, lensMat);
     lensGroup.add(convexMesh);
@@ -287,11 +307,11 @@
     const concaveProfile = [];
     const stepsLathe = 20;
     const R_lens = 14;
-    const T_center = 1.0;
-    const T_edge = 5.0;
-
+    const T_center = 1.0; 
+    const T_edge = 5.0;   
+    
     for (let i = 0; i <= stepsLathe; i++) {
-        const r = (i / stepsLathe) * R_lens;
+        const r = (i / stepsLathe) * R_lens; 
         const halfThick = (T_center + (T_edge - T_center) * (r/R_lens)**2) / 2;
         concaveProfile.push(new THREE.Vector2(r, halfThick));
     }
@@ -300,7 +320,7 @@
         const halfThick = (T_center + (T_edge - T_center) * (r/R_lens)**2) / 2;
         concaveProfile.push(new THREE.Vector2(r, -halfThick));
     }
-
+    
     const concaveGeo = new THREE.LatheGeometry(concaveProfile, 32);
     const concaveMesh = new THREE.Mesh(concaveGeo, lensMat);
     concaveMesh.rotation.z = -Math.PI / 2;
@@ -312,19 +332,34 @@
     const rimMesh = new THREE.Mesh(rimGeo, lensRimMat);
     rimMesh.rotation.y = Math.PI / 2;
     lensGroup.add(rimMesh);
-
+    
     lensGroup.traverse(c => { c.layers.enableAll(); });
 
-    // ARROWS
-    const objArrow = create3DArrow(objectMat, "Object");
+    // --- OBJECTS (Arrow & Knot) ---
+    const objGroup = new THREE.Group();
+    scene.add(objGroup);
+
+    // 1. Arrow Objects
+    const objArrow = create3DArrow(objectMat, "ObjectArrow");
     const baseSphere = new THREE.Mesh(new THREE.SphereGeometry(0.4), objectMat);
     objArrow.add(baseSphere);
-    scene.add(objArrow);
+    objGroup.add(objArrow);
 
-    const imgArrow = create3DArrow(imageMat, "Image");
+    const imgArrow = create3DArrow(imageMat, "ImageArrow");
     const imgBaseSphere = new THREE.Mesh(new THREE.SphereGeometry(0.4), imageMat);
     imgArrow.add(imgBaseSphere);
-    scene.add(imgArrow);
+    objGroup.add(imgArrow);
+
+    // 2. Knot Objects
+    const objKnot = create3DKnot(objectMat, "ObjectKnot");
+    objGroup.add(objKnot);
+    
+    const imgKnot = create3DKnot(imageMat, "ImageKnot");
+    objGroup.add(imgKnot);
+    
+    // Initially hide knot
+    objKnot.visible = false;
+    imgKnot.visible = false;
 
     // FOCAL POINTS
     const focalGeo = new THREE.SphereGeometry(0.3, 16, 16);
@@ -336,13 +371,15 @@
     scene.add(fPoint1);
     scene.add(fPoint2);
 
-    // RAYS
+    // RAYS Group
     const raysGroup = new THREE.Group();
     raysGroup.layers.set(0);
     scene.add(raysGroup);
 
     // --- 4. Logic & Simulation ---
+
     let currentLensType = 'convex';
+    let currentObjType = 'arrow'; // 'arrow' or 'knot'
 
     const ui = {
         dist: document.getElementById('input-dist'),
@@ -359,9 +396,12 @@
         infoMag: document.getElementById('info-mag'),
         btnConvex: document.getElementById('btn-convex'),
         btnConcave: document.getElementById('btn-concave'),
+        btnObjArrow: document.getElementById('btn-obj-arrow'),
+        btnObjKnot: document.getElementById('btn-obj-knot'),
         descText: document.getElementById('text-lens-desc')
     };
 
+    // Lens Toggle
     function setLensType(type) {
         currentLensType = type;
         if (type === 'convex') {
@@ -379,13 +419,39 @@
         }
         updateSimulation();
     }
+    
+    // Object Toggle
+    function setObjType(type) {
+        currentObjType = type;
+        if (type === 'arrow') {
+            ui.btnObjArrow.classList.add('active');
+            ui.btnObjKnot.classList.remove('active');
+            
+            objArrow.visible = true;
+            imgArrow.visible = true;
+            objKnot.visible = false;
+            imgKnot.visible = false;
+        } else {
+            ui.btnObjArrow.classList.remove('active');
+            ui.btnObjKnot.classList.add('active');
+            
+            objArrow.visible = false;
+            imgArrow.visible = false;
+            objKnot.visible = true;
+            imgKnot.visible = true;
+        }
+        updateSimulation();
+    }
 
     ui.btnConvex.addEventListener('click', () => setLensType('convex'));
     ui.btnConcave.addEventListener('click', () => setLensType('concave'));
+    ui.btnObjArrow.addEventListener('click', () => setObjType('arrow'));
+    ui.btnObjKnot.addEventListener('click', () => setObjType('knot'));
 
     function updateSimulation() {
         const do_val = parseFloat(ui.dist.value);
         let f_val_mag = parseFloat(ui.focal.value);
+        
         let f_val = (currentLensType === 'convex') ? f_val_mag : -f_val_mag;
 
         const h_scale = parseFloat(ui.height.value);
@@ -398,22 +464,38 @@
         ui.valFocal.textContent = f_val_mag.toFixed(1);
         ui.valHeight.textContent = h_scale.toFixed(1);
 
+        // Lens Shape Update
         if (currentLensType === 'convex') {
             const thicknessFactor = 3.0 / f_val_mag; 
             convexMesh.scale.set(thicknessFactor, 1, 1);
         } else {
-            const scaleFactor = 20.0 / f_val_mag;
+            const scaleFactor = 20.0 / f_val_mag; 
             concaveMesh.scale.set(1, scaleFactor, 1); 
         }
 
+        // --- Object Positioning ---
         const objPos = new THREE.Vector3(-do_val, off_y, off_z);
-        objArrow.position.copy(objPos);
-        const baseScale = h_scale / 2.0; 
-        objArrow.scale.set(baseScale, baseScale, baseScale);
+        
+        // Base Scale for Arrow
+        const arrowScale = h_scale / 2.0; 
+        
+        // Scale for Knot (TorusKnot radius 1)
+        const knotScale = h_scale / 2.5;
 
+        // Apply to Active Object
+        if (currentObjType === 'arrow') {
+            objArrow.position.copy(objPos);
+            objArrow.scale.set(arrowScale, arrowScale, arrowScale);
+        } else {
+            objKnot.position.copy(objPos);
+            objKnot.scale.set(knotScale, knotScale, knotScale);
+        }
+
+        // Focal Points
         fPoint1.position.set(-f_val_mag, 0, 0);
         fPoint2.position.set(f_val_mag, 0, 0);
 
+        // --- Image Calculation ---
         let di_val = 0;
         let magnification = 0;
         let isReal = true;
@@ -432,14 +514,24 @@
             const imgX = di_val;
             const imgY = off_y * magnification;
             const imgZ = off_z * magnification;
-
-            imgArrow.position.set(imgX, imgY, imgZ);
-
+            
+            // Set Active Image Position
+            let targetImg = (currentObjType === 'arrow') ? imgArrow : imgKnot;
+            let targetScale = (currentObjType === 'arrow') ? arrowScale : knotScale;
+            
+            targetImg.position.set(imgX, imgY, imgZ);
+            
             const absMag = Math.abs(magnification);
-            imgArrow.scale.set(baseScale * absMag, baseScale * absMag, baseScale * absMag);
+            targetImg.scale.set(targetScale * absMag, targetScale * absMag, targetScale * absMag);
 
-            if (magnification < 0) imgArrow.rotation.set(Math.PI, 0, 0); 
-            else imgArrow.rotation.set(0, 0, 0);
+            // Orientation Logic
+            if (magnification < 0) {
+                // Real Image (Inverted) - Rotate 180 on X axis
+                targetImg.rotation.set(Math.PI, 0, 0); 
+            } else {
+                // Virtual Image (Upright)
+                targetImg.rotation.set(0, 0, 0);
+            }
 
             if (di_val > 0) {
                 isReal = true;
@@ -447,90 +539,114 @@
                 ui.infoType.style.color = "#4ade80"; 
             } else {
                 isReal = false;
-                ui.infoType.textContent = "허상 (정립 축소/확대)";
+                ui.infoType.textContent = "허상 (정립)";
                 ui.infoType.style.color = "#f87171"; 
-                if (currentLensType === 'concave') ui.infoType.textContent = "허상 (정립 축소)";
             }
         }
-
+        
         ui.infoMag.textContent = Math.abs(magnification).toFixed(2) + "배";
-        imgArrow.visible = !isParallel;
+        
+        // Visibility
+        const activeImg = (currentObjType === 'arrow') ? imgArrow : imgKnot;
+        activeImg.visible = !isParallel;
 
-        if (!isReal) imgArrow.children.forEach(m => { m.material.opacity = 0.5; });
-        else imgArrow.children.forEach(m => { m.material.opacity = 1.0; });
+        if (!isReal) {
+             activeImg.children.forEach(m => { if(m.material) m.material.opacity = 0.5; });
+        } else {
+             activeImg.children.forEach(m => { if(m.material) m.material.opacity = 1.0; });
+        }
 
-        const tipHeightLocal = 2.2 * baseScale;
-        const objTip = new THREE.Vector3(-do_val, off_y + tipHeightLocal, off_z);
-
-        let imgTip;
-        if (isParallel) imgTip = new THREE.Vector3(1000, -objTip.y * 100, -objTip.z * 100);
-        else imgTip = new THREE.Vector3(di_val, objTip.y * magnification, objTip.z * magnification);
-
-        draw3DRays(objTip, imgTip, f_val, isReal, isParallel);
-        updateLayers();
-    }
-
-    function draw3DRays(objTip, imgTip, f_val, isReal, isParallel) {
+        // --- Multi-Ray Tracing ---
+        
+        // Define Source Points (Relative to Object Center)
+        let sourcePointsLocal = [];
+        
+        if (currentObjType === 'arrow') {
+            // Arrow: Just Tip
+            // Tip local Y is ~2.2 * scale (Stem 1 + Head 1.2)
+            // But we can just use a fixed relative point scaled by object scale
+            // Local Tip is (0, 2.2, 0)
+            sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * arrowScale, 0));
+        } else {
+            // Knot: 4 cardinal points to show 3D nature
+            // TorusKnot(1, 0.3) -> Approx radius 1.3
+            const r = 1.3 * knotScale;
+            sourcePointsLocal.push(new THREE.Vector3(0, r, 0));   // Top
+            sourcePointsLocal.push(new THREE.Vector3(0, -r, 0));  // Bottom
+            sourcePointsLocal.push(new THREE.Vector3(0, 0, r));   // Front/Right
+            sourcePointsLocal.push(new THREE.Vector3(0, 0, -r));  // Back/Left
+        }
+        
+        // Clear Rays First
         while(raysGroup.children.length > 0){ 
             const obj = raysGroup.children.pop();
             if(obj.geometry) obj.geometry.dispose();
             raysGroup.remove(obj); 
         }
 
-        const lensHit1 = new THREE.Vector3(0, objTip.y, objTip.z);
+        // Trace for each point
+        sourcePointsLocal.forEach(localPt => {
+            // Convert to World Pos
+            const objTip = new THREE.Vector3().copy(localPt).add(objPos);
+            
+            // Calculate Image Point World Pos
+            let imgTip;
+            if (isParallel) {
+                imgTip = new THREE.Vector3(1000, 0, 0);
+            } else {
+                // Apply magnification to local offset, then add to image center
+                // Magnification inverts local coords if negative
+                const imgOffset = localPt.clone().multiplyScalar(magnification);
+                // Also, rotation X=180 handles inversion for mesh, but for points we calculate manually
+                // If mag < 0, y -> -y, z -> -z. 
+                // The formula above (multiplyScalar) handles sign correctly.
+                
+                // Image Center
+                const imgCenter = new THREE.Vector3(di_val, off_y * magnification, off_z * magnification);
+                imgTip = new THREE.Vector3().copy(imgCenter).add(imgOffset);
+            }
+            
+            draw3DRays(objTip, imgTip, f_val, isReal, isParallel);
+        });
+        
+        updateLayers();
+    }
 
+    // [New] Generic Trace Function for a single point pair
+    function draw3DRays(objTip, imgTip, f_val, isReal, isParallel) {
+        
+        // Ray 1: Parallel to Axis -> Refracts through Focus
+        const lensHit1 = new THREE.Vector3(0, objTip.y, objTip.z);
+        
         if (currentLensType === 'convex') {
             const focusPoint = new THREE.Vector3(f_val, 0, 0); 
             const pts1 = [objTip.clone(), lensHit1.clone()];
             const dir1 = new THREE.Vector3().subVectors(focusPoint, lensHit1).normalize();
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
             addLine(pts1, rayMat);
-
+            
             if (!isReal && !isParallel) {
                 const vPts1 = [imgTip.clone(), lensHit1.clone()];
                 addLine(vPts1, virtualRayMat, true);
             }
         } else {
-            const focusPoint = new THREE.Vector3(f_val, 0, 0);
+            const focusPoint = new THREE.Vector3(f_val, 0, 0); 
             const pts1 = [objTip.clone(), lensHit1.clone()];
-            const dir1 = new THREE.Vector3().subVectors(lensHit1, focusPoint).normalize();
+            const dir1 = new THREE.Vector3().subVectors(lensHit1, focusPoint).normalize(); // Diverge
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
             addLine(pts1, rayMat);
-
+            
             const vPts1 = [focusPoint.clone(), lensHit1.clone()];
             addLine(vPts1, virtualRayMat, true);
         }
 
+        // Ray 2: Center (Undeviated)
         const center = new THREE.Vector3(0,0,0);
         const dir2 = new THREE.Vector3().subVectors(center, objTip).normalize();
         const pts2 = [objTip.clone(), dir2.multiplyScalar(200).add(objTip)];
         addLine(pts2, rayMat);
-
-        let targetFocusX = 0;
-        if (currentLensType === 'convex') targetFocusX = -f_val;
-        else targetFocusX = -f_val;
-        const targetF = new THREE.Vector3(targetFocusX, 0, 0);
-
-        const denom = targetF.x - objTip.x;
-
-        if (Math.abs(denom) > 0.1) {
-            const t = -objTip.x / denom;
-            const lensHit3 = new THREE.Vector3().subVectors(targetF, objTip).multiplyScalar(t).add(objTip);
-
-            if (isFinite(lensHit3.y) && isFinite(lensHit3.z) && lensHit3.length() < 1000) {
-                const pts3 = [objTip.clone(), lensHit3.clone()];
-                pts3.push(new THREE.Vector3(200, lensHit3.y, lensHit3.z));
-                addLine(pts3, rayMat);
-
-                if (currentLensType === 'concave') {
-                    const vPts3 = [new THREE.Vector3(-200, lensHit3.y, lensHit3.z), lensHit3.clone()];
-                    addLine(vPts3, virtualRayMat, true);
-                } else if (!isReal && !isParallel) {
-                     const vPts3 = [new THREE.Vector3(-200, lensHit3.y, lensHit3.z), lensHit3.clone()];
-                     addLine(vPts3, virtualRayMat, true);
-                }
-            }
-        }
+        
+        // (Ray 3 omitted for multi-point to prevent visual overload, 2 rays per point is sufficient for 3D demo)
     }
 
     function addLine(points, material, isDashed = false) {
@@ -547,13 +663,21 @@
         cameraTop.layers.enable(2);
 
         cameraEye.layers.disableAll();
-        cameraEye.layers.enable(2);
-
+        cameraEye.layers.enable(2); 
+        
+        // Visibility Layers
+        // Object Layer (1), Image Layer (2)
+        // Arrows
         objArrow.traverse(o => { o.layers.set(1); o.layers.enable(0); });
         imgArrow.traverse(o => { o.layers.set(2); o.layers.enable(0); });
+        
+        // Knots
+        const objKnot = scene.getObjectByName("ObjectKnot");
+        const imgKnot = scene.getObjectByName("ImageKnot");
+        if(objKnot) objKnot.traverse(o => { o.layers.set(1); o.layers.enable(0); });
+        if(imgKnot) imgKnot.traverse(o => { o.layers.set(2); o.layers.enable(0); });
     }
 
-    // --- 5. Render Loop ---
     function render() {
         requestAnimationFrame(render);
         controls.update();
@@ -561,7 +685,7 @@
         const width = window.innerWidth;
         const height = window.innerHeight;
         const splitY = Math.floor(height * 0.45); 
-
+        
         divider.style.top = (height - splitY) + "px";
         document.getElementById('label-eye').style.bottom = (splitY - 40) + "px";
 
@@ -575,7 +699,7 @@
         renderer.setScissor(0, splitY, width, height - splitY);
         renderer.setScissorTest(true);
         renderer.setClearColor(0x111111);
-
+        
         cameraTop.aspect = width / (height - splitY);
         cameraTop.updateProjectionMatrix();
         renderer.render(scene, cameraTop);
@@ -585,11 +709,11 @@
         renderer.setScissor(0, 0, width, splitY);
         renderer.setScissorTest(true);
         renderer.setClearColor(0x050505);
-
+        
         renderer.clearStencil(); 
-
+        
         const activeMesh = (currentLensType === 'convex') ? convexMesh : concaveMesh;
-
+        
         activeMesh.renderOrder = 1;
         lensMat.stencilWrite = true;
         lensMat.stencilFunc = THREE.AlwaysStencilFunc; 
@@ -600,21 +724,25 @@
 
         if(currentLensType === 'convex') concaveMesh.renderOrder = 999; 
         else convexMesh.renderOrder = 999;
+        
+        // Determine active image object
+        const activeImg = (currentObjType === 'arrow') ? imgArrow : scene.getObjectByName("ImageKnot");
 
-        imgArrow.renderOrder = 2; 
-        imgArrow.traverse(child => {
-            if(child.material) {
-                child.material.stencilWrite = true;
-                child.material.stencilFunc = THREE.EqualStencilFunc; 
-                child.material.stencilRef = 1;
-            }
-        });
+        if (activeImg) {
+            activeImg.renderOrder = 2; 
+            activeImg.traverse(child => {
+                if(child.material) {
+                    child.material.stencilWrite = true;
+                    child.material.stencilFunc = THREE.EqualStencilFunc; 
+                    child.material.stencilRef = 1;
+                }
+            });
+        }
 
         cameraEye.aspect = width / splitY;
         cameraEye.updateProjectionMatrix();
         renderer.render(scene, cameraEye);
 
-        // Restore
         lensMat.depthWrite = true;
         lensMat.side = THREE.DoubleSide;
     }
@@ -632,17 +760,6 @@
     // Init
     updateSimulation();
     render();
-
-</script>
-
-<script>
-  // Register service worker (optional). Safe on GitHub Pages.
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
-    });
-  }
-</script>
-
+    </script>
 </body>
 </html>
