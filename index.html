@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D 렌즈 시뮬레이터</title>
     
-    <!-- 필수 라이브러리 -->
+    <!-- 폰트 및 라이브러리 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,7 +23,7 @@
             background: rgba(20, 20, 20, 0.9);
             padding: 15px;
             border-radius: 12px;
-            width: 260px; /* 너비 약간 증가 */
+            width: 260px;
             max-height: 90vh;
             overflow-y: auto;
             backdrop-filter: blur(8px);
@@ -32,6 +33,12 @@
             z-index: 50;
         }
         
+        /* 스크롤바 커스텀 */
+        .ui-panel::-webkit-scrollbar { width: 6px; }
+        .ui-panel::-webkit-scrollbar-track { background: #222; }
+        .ui-panel::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        
+        /* 뷰 라벨 스타일 */
         .view-label {
             position: absolute;
             padding: 6px 12px;
@@ -49,6 +56,7 @@
         #label-main { top: 20px; right: 20px; }
         #label-eye { bottom: 20px; right: 20px; }
         
+        /* 슬라이더 스타일 */
         .slider-group { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #333; }
         .slider-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8em; color: #ccc; }
         
@@ -62,7 +70,7 @@
             width: 14px; height: 14px; background: #4ade80; border-radius: 50%;
         }
 
-        /* 선택 버튼 스타일 (공통) */
+        /* 선택 버튼 스타일 */
         .selector-row {
             display: flex;
             background: #333;
@@ -92,6 +100,7 @@
         .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
         .color-box { width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; }
         
+        /* 화면 분할 선 */
         #divider {
             position: absolute;
             left: 0;
@@ -168,6 +177,29 @@
             <input type="range" id="input-offset-z" min="-15" max="15" step="0.5" value="5">
         </div>
 
+        <!-- Rotation Control -->
+        <div class="slider-group">
+            <div class="font-bold text-sm text-white mb-2">🔄 회전 (Rotation)</div>
+            
+            <div class="slider-label">
+                <span>X축 회전 (Pitch)</span>
+                <span id="val-rot-x" class="font-mono text-blue-300">0°</span>
+            </div>
+            <input type="range" id="input-rot-x" min="-360" max="360" step="5" value="0">
+
+            <div class="slider-label mt-2">
+                <span>Y축 회전 (Yaw)</span>
+                <span id="val-rot-y" class="font-mono text-blue-300">0°</span>
+            </div>
+            <input type="range" id="input-rot-y" min="-360" max="360" step="5" value="0">
+
+            <div class="slider-label mt-2">
+                <span>Z축 회전 (Roll)</span>
+                <span id="val-rot-z" class="font-mono text-blue-300">0°</span>
+            </div>
+            <input type="range" id="input-rot-z" min="-360" max="360" step="5" value="0">
+        </div>
+
         <div class="p-3 bg-gray-800 rounded border border-gray-700 mb-2">
             <div class="flex justify-between mb-1 text-sm">
                 <span class="text-gray-400">상의 종류:</span>
@@ -202,12 +234,13 @@
     scene.fog = new THREE.Fog(0x111111, 80, 250);
 
     // --- Cameras ---
+    // 위에서 내려다보는 카메라 (Top View)
     const cameraTop = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     cameraTop.position.set(40, 30, 60);
     cameraTop.lookAt(0, 0, 0);
 
+    // 눈으로 보는 카메라 (Observer View)
     const cameraEye = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // [Updated] Moved closer (100 -> 66) to make lens appear ~1.5x larger in observer view
     cameraEye.position.set(66, 0, 0); 
     cameraEye.lookAt(0, 0, 0);
     
@@ -267,11 +300,10 @@
     const objectMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x440000 });
     const imageMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, emissive: 0x001144, transparent: true, opacity: 0.9 });
     
-    const rayMat = new THREE.LineBasicMaterial({ color: 0xffdd00, linewidth: 1, transparent: true, opacity: 0.6 }); // Ray opacity lowered for multiray
+    const rayMat = new THREE.LineBasicMaterial({ color: 0xffdd00, linewidth: 1, transparent: true, opacity: 0.6 });
     const virtualRayMat = new THREE.LineDashedMaterial({ color: 0xaaaaaa, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 });
 
-    // [New] Multi-color materials for 3D Knot rays
-    // Colors: Red, Lime, Cyan, Magenta
+    // Multi-color materials for 3D Knot rays
     const rayColors = [0xff4444, 0x44ff44, 0x44ffff, 0xff44ff];
     const rayMaterials = rayColors.map(c => new THREE.LineBasicMaterial({ color: c, linewidth: 1, transparent: true, opacity: 0.7 }));
     const virtualRayMaterials = rayColors.map(c => new THREE.LineDashedMaterial({ color: c, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 }));
@@ -394,11 +426,20 @@
         offsetZ: document.getElementById('input-offset-z'),
         focal: document.getElementById('input-focal'),
         height: document.getElementById('input-height'),
+        // Rotation inputs
+        rotX: document.getElementById('input-rot-x'),
+        rotY: document.getElementById('input-rot-y'),
+        rotZ: document.getElementById('input-rot-z'),
+        // Labels
         valDist: document.getElementById('val-dist'),
         valOffsetY: document.getElementById('val-offset-y'),
         valOffsetZ: document.getElementById('val-offset-z'),
         valFocal: document.getElementById('val-focal'),
         valHeight: document.getElementById('val-height'),
+        valRotX: document.getElementById('val-rot-x'),
+        valRotY: document.getElementById('val-rot-y'),
+        valRotZ: document.getElementById('val-rot-z'),
+        
         infoType: document.getElementById('info-type'),
         infoMag: document.getElementById('info-mag'),
         btnConvex: document.getElementById('btn-convex'),
@@ -464,12 +505,26 @@
         const h_scale = parseFloat(ui.height.value);
         const off_y = parseFloat(ui.offsetY.value); 
         const off_z = parseFloat(ui.offsetZ.value);
+        
+        // Rotation Values (in degrees)
+        const rot_x_deg = parseFloat(ui.rotX.value);
+        const rot_y_deg = parseFloat(ui.rotY.value);
+        const rot_z_deg = parseFloat(ui.rotZ.value);
 
+        // Convert to Radians
+        const rad_x = THREE.MathUtils.degToRad(rot_x_deg);
+        const rad_y = THREE.MathUtils.degToRad(rot_y_deg);
+        const rad_z = THREE.MathUtils.degToRad(rot_z_deg);
+
+        // Update Labels
         ui.valDist.textContent = do_val.toFixed(1);
         ui.valOffsetY.textContent = off_y.toFixed(1);
         ui.valOffsetZ.textContent = off_z.toFixed(1);
         ui.valFocal.textContent = f_val_mag.toFixed(1);
         ui.valHeight.textContent = h_scale.toFixed(1);
+        ui.valRotX.textContent = rot_x_deg + "°";
+        ui.valRotY.textContent = rot_y_deg + "°";
+        ui.valRotZ.textContent = rot_z_deg + "°";
 
         // Lens Shape Update
         if (currentLensType === 'convex') {
@@ -480,8 +535,9 @@
             concaveMesh.scale.set(1, scaleFactor, 1); 
         }
 
-        // --- Object Positioning ---
+        // --- Object Positioning & Rotation ---
         const objPos = new THREE.Vector3(-do_val, off_y, off_z);
+        const objRotation = new THREE.Euler(rad_x, rad_y, rad_z, 'XYZ');
         
         // Base Scale for Arrow
         const arrowScale = h_scale / 2.0; 
@@ -493,9 +549,11 @@
         if (currentObjType === 'arrow') {
             objArrow.position.copy(objPos);
             objArrow.scale.set(arrowScale, arrowScale, arrowScale);
+            objArrow.rotation.copy(objRotation);
         } else {
             objKnot.position.copy(objPos);
             objKnot.scale.set(knotScale, knotScale, knotScale);
+            objKnot.rotation.copy(objRotation);
         }
 
         // Focal Points
@@ -531,20 +589,21 @@
             const absMag = Math.abs(magnification);
             targetImg.scale.set(targetScale * absMag, targetScale * absMag, targetScale * absMag);
 
-            // Orientation Logic
-            if (magnification < 0) {
-                // Real Image (Inverted) - Rotate 180 on X axis
-                targetImg.rotation.set(Math.PI, 0, 0); 
-            } else {
-                // Virtual Image (Upright)
-                targetImg.rotation.set(0, 0, 0);
-            }
+            // Orientation Logic (Applying Rotation)
+            // 1. Set basic user rotation first
+            targetImg.rotation.copy(objRotation);
 
-            if (di_val > 0) {
+            if (magnification < 0) {
+                // Real Image (Inverted)
+                // Apply 180 degree flip around X-axis relative to the user rotation
+                // Using rotateX() applies it in the object's local space, which correctly flips Up/Down and Front/Back relative to its orientation
+                targetImg.rotateX(Math.PI); 
+
                 isReal = true;
                 ui.infoType.textContent = "실상 (도립)";
                 ui.infoType.style.color = "#4ade80"; 
             } else {
+                // Virtual Image (Upright) - already copied rotation
                 isReal = false;
                 ui.infoType.textContent = "허상 (정립)";
                 ui.infoType.style.color = "#f87171"; 
@@ -569,14 +628,12 @@
         let sourcePointsLocal = [];
         
         if (currentObjType === 'arrow') {
-            // Arrow: Just Tip
-            // Tip local Y is ~2.2 * scale (Stem 1 + Head 1.2)
-            // But we can just use a fixed relative point scaled by object scale
-            // Local Tip is (0, 2.2, 0)
-            sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * arrowScale, 0));
+            // Arrow: Just Tip (local y = 2.2 * scale)
+            // But we must apply scale here manually to get the local vector size before rotation
+            const s = arrowScale;
+            sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * s, 0));
         } else {
             // Knot: 4 cardinal points to show 3D nature
-            // TorusKnot(1, 0.3) -> Approx radius 1.3
             const r = 1.3 * knotScale;
             sourcePointsLocal.push(new THREE.Vector3(0, r, 0));   // Top
             sourcePointsLocal.push(new THREE.Vector3(0, -r, 0));  // Bottom
@@ -593,22 +650,24 @@
 
         // Trace for each point
         sourcePointsLocal.forEach((localPt, index) => {
-            // Convert to World Pos
-            const objTip = new THREE.Vector3().copy(localPt).add(objPos);
+            // 1. Apply Object Rotation to the local point to get "Rotated Local Point"
+            const rotatedLocalPt = localPt.clone().applyEuler(objRotation);
+
+            // 2. Convert to World Pos
+            const objTip = new THREE.Vector3().copy(rotatedLocalPt).add(objPos);
             
-            // Calculate Image Point World Pos
+            // 3. Calculate Image Point World Pos
             let imgTip;
             if (isParallel) {
                 imgTip = new THREE.Vector3(1000, 0, 0);
             } else {
-                // Apply magnification to local offset, then add to image center
-                // Magnification inverts local coords if negative
-                const imgOffset = localPt.clone().multiplyScalar(magnification);
-                // Also, rotation X=180 handles inversion for mesh, but for points we calculate manually
-                // If mag < 0, y -> -y, z -> -z. 
-                // The formula above (multiplyScalar) handles sign correctly.
+                // magnification applies to the offset from the optical axis
+                // The offset is (y, z). X is the optical axis.
+                // However, for 3D rotation, we simply map the rotated local point to the image space.
+                // ImageOffset = RotatedLocalPt * Magnification
+                // Since M can be negative, it handles the inversion of the point coordinates relative to axis
+                const imgOffset = rotatedLocalPt.clone().multiplyScalar(magnification);
                 
-                // Image Center
                 const imgCenter = new THREE.Vector3(di_val, off_y * magnification, off_z * magnification);
                 imgTip = new THREE.Vector3().copy(imgCenter).add(imgOffset);
             }
@@ -621,7 +680,6 @@
         updateLayers();
     }
 
-    // [Updated] Generic Trace Function now accepts colorIndex
     function draw3DRays(objTip, imgTip, f_val, isReal, isParallel, colorIndex) {
         
         // Select Materials based on colorIndex
@@ -630,12 +688,13 @@
             rMat = rayMat; // Default Yellow
             vMat = virtualRayMat;
         } else {
-            // Cycle through defined colors if more than 4 points
             rMat = rayMaterials[colorIndex % rayMaterials.length];
             vMat = virtualRayMaterials[colorIndex % virtualRayMaterials.length];
         }
 
         // Ray 1: Parallel to Axis -> Refracts through Focus
+        // Important: "Parallel to Axis" ray starts from the object tip and goes parallel to X axis until it hits the lens plane (x=0)
+        // The lens plane intersection is (0, objTip.y, objTip.z)
         const lensHit1 = new THREE.Vector3(0, objTip.y, objTip.z);
         
         if (currentLensType === 'convex') {
@@ -643,11 +702,11 @@
             const pts1 = [objTip.clone(), lensHit1.clone()];
             const dir1 = new THREE.Vector3().subVectors(focusPoint, lensHit1).normalize();
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
-            addLine(pts1, rMat); // Use chosen material
+            addLine(pts1, rMat); 
             
             if (!isReal && !isParallel) {
                 const vPts1 = [imgTip.clone(), lensHit1.clone()];
-                addLine(vPts1, vMat, true); // Use chosen material
+                addLine(vPts1, vMat, true); 
             }
         } else {
             const focusPoint = new THREE.Vector3(f_val, 0, 0); 
@@ -665,8 +724,6 @@
         const dir2 = new THREE.Vector3().subVectors(center, objTip).normalize();
         const pts2 = [objTip.clone(), dir2.multiplyScalar(200).add(objTip)];
         addLine(pts2, rMat);
-        
-        // (Ray 3 omitted for multi-point to prevent visual overload, 2 rays per point is sufficient for 3D demo)
     }
 
     function addLine(points, material, isDashed = false) {
@@ -686,8 +743,6 @@
         cameraEye.layers.enable(2); 
         
         // Visibility Layers
-        // Object Layer (1), Image Layer (2)
-        // Arrows
         objArrow.traverse(o => { o.layers.set(1); o.layers.enable(0); });
         imgArrow.traverse(o => { o.layers.set(2); o.layers.enable(0); });
         
