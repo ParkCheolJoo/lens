@@ -162,7 +162,8 @@
                 <span>거리 (Distance X)</span>
                 <span id="val-dist" class="font-mono text-green-300">30.0</span>
             </div>
-            <input type="range" id="input-dist" min="5" max="60" step="0.5" value="25">
+            <!-- 거리 초기값 30으로 수정 -->
+            <input type="range" id="input-dist" min="5" max="60" step="0.5" value="30">
             
             <div class="slider-label mt-2">
                 <span>높이 (Vertical Y)</span>
@@ -172,9 +173,10 @@
 
             <div class="slider-label mt-2">
                 <span>좌우 (Horizontal Z)</span>
-                <span id="val-offset-z" class="font-mono text-green-300">5.0</span>
+                <span id="val-offset-z" class="font-mono text-green-300">0.0</span>
             </div>
-            <input type="range" id="input-offset-z" min="-15" max="15" step="0.5" value="5">
+            <!-- 좌우 초기값 0 유지 -->
+            <input type="range" id="input-offset-z" min="-15" max="15" step="0.5" value="0">
         </div>
 
         <!-- Rotation Control -->
@@ -566,7 +568,19 @@
         let isReal = true;
         let isParallel = false;
 
-        if (currentLensType === 'convex' && Math.abs(do_val - f_val) < 0.1) {
+        // [Logic] Handle Singularity (Distance = 0)
+        // With min=5, this condition (do_val < 0.1) won't typically be met via slider, 
+        // but kept for robustness if programmatic value changes.
+        if (Math.abs(do_val) < 0.1) {
+            // If Object is at the lens center, Image is at the center, Mag is 1
+            isParallel = false;
+            di_val = 0;
+            magnification = 1;
+            ui.infoType.textContent = "렌즈 중심 (일치)";
+            ui.infoType.style.color = "#ffffff";
+            isReal = false; 
+        } 
+        else if (currentLensType === 'convex' && Math.abs(do_val - f_val) < 0.1) {
             isParallel = true;
             di_val = 5000; 
             magnification = 100;
@@ -576,6 +590,19 @@
             di_val = (f_val * do_val) / (do_val - f_val);
             magnification = -di_val / do_val; 
 
+            if (di_val > 0) {
+                isReal = true;
+                ui.infoType.textContent = "실상 (도립)";
+                ui.infoType.style.color = "#4ade80"; 
+            } else {
+                isReal = false;
+                ui.infoType.textContent = "허상 (정립)";
+                ui.infoType.style.color = "#f87171"; 
+            }
+        }
+
+        // Apply Image Position if not parallel
+        if (!isParallel) {
             const imgX = di_val;
             const imgY = off_y * magnification;
             const imgZ = off_z * magnification;
@@ -595,19 +622,8 @@
 
             if (magnification < 0) {
                 // Real Image (Inverted)
-                // Apply 180 degree flip around X-axis relative to the user rotation
-                // Using rotateX() applies it in the object's local space, which correctly flips Up/Down and Front/Back relative to its orientation
                 targetImg.rotateX(Math.PI); 
-
-                isReal = true;
-                ui.infoType.textContent = "실상 (도립)";
-                ui.infoType.style.color = "#4ade80"; 
-            } else {
-                // Virtual Image (Upright) - already copied rotation
-                isReal = false;
-                ui.infoType.textContent = "허상 (정립)";
-                ui.infoType.style.color = "#f87171"; 
-            }
+            } 
         }
         
         ui.infoMag.textContent = Math.abs(magnification).toFixed(2) + "배";
@@ -629,7 +645,6 @@
         
         if (currentObjType === 'arrow') {
             // Arrow: Just Tip (local y = 2.2 * scale)
-            // But we must apply scale here manually to get the local vector size before rotation
             const s = arrowScale;
             sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * s, 0));
         } else {
@@ -660,14 +675,11 @@
             let imgTip;
             if (isParallel) {
                 imgTip = new THREE.Vector3(1000, 0, 0);
+            } else if (Math.abs(do_val) < 0.1) {
+                // At center
+                imgTip = objTip.clone();
             } else {
-                // magnification applies to the offset from the optical axis
-                // The offset is (y, z). X is the optical axis.
-                // However, for 3D rotation, we simply map the rotated local point to the image space.
-                // ImageOffset = RotatedLocalPt * Magnification
-                // Since M can be negative, it handles the inversion of the point coordinates relative to axis
                 const imgOffset = rotatedLocalPt.clone().multiplyScalar(magnification);
-                
                 const imgCenter = new THREE.Vector3(di_val, off_y * magnification, off_z * magnification);
                 imgTip = new THREE.Vector3().copy(imgCenter).add(imgOffset);
             }
@@ -704,7 +716,7 @@
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
             addLine(pts1, rMat); 
             
-            if (!isReal && !isParallel) {
+            if (!isReal && !isParallel && Math.abs(parseFloat(ui.dist.value)) > 0.1) {
                 const vPts1 = [imgTip.clone(), lensHit1.clone()];
                 addLine(vPts1, vMat, true); 
             }
@@ -715,8 +727,10 @@
             pts1.push(dir1.multiplyScalar(200).add(lensHit1));
             addLine(pts1, rMat);
             
-            const vPts1 = [focusPoint.clone(), lensHit1.clone()];
-            addLine(vPts1, vMat, true);
+            if (Math.abs(parseFloat(ui.dist.value)) > 0.1) {
+                const vPts1 = [focusPoint.clone(), lensHit1.clone()];
+                addLine(vPts1, vMat, true);
+            }
         }
 
         // Ray 2: Center (Undeviated)
