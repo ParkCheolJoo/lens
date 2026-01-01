@@ -162,7 +162,6 @@
                 <span>거리 (Distance X)</span>
                 <span id="val-dist" class="font-mono text-green-300">30.0</span>
             </div>
-            <!-- 거리 초기값 30으로 수정 -->
             <input type="range" id="input-dist" min="5" max="60" step="0.5" value="30">
             
             <div class="slider-label mt-2">
@@ -175,7 +174,6 @@
                 <span>좌우 (Horizontal Z)</span>
                 <span id="val-offset-z" class="font-mono text-green-300">0.0</span>
             </div>
-            <!-- 좌우 초기값 0 유지 -->
             <input type="range" id="input-offset-z" min="-15" max="15" step="0.5" value="0">
         </div>
 
@@ -208,7 +206,7 @@
                 <span id="info-type" class="font-bold text-white">--</span>
             </div>
             <div class="flex justify-between mb-1 text-sm">
-                <span class="text-gray-400">배율:</span>
+                <span class="text-gray-400">배율(중심):</span>
                 <span id="info-mag" class="font-bold text-white">--</span>
             </div>
         </div>
@@ -236,17 +234,14 @@
     scene.fog = new THREE.Fog(0x111111, 80, 250);
 
     // --- Cameras ---
-    // 위에서 내려다보는 카메라 (Top View)
     const cameraTop = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     cameraTop.position.set(40, 30, 60);
     cameraTop.lookAt(0, 0, 0);
 
-    // 눈으로 보는 카메라 (Observer View)
     const cameraEye = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
     cameraEye.position.set(66, 0, 0); 
     cameraEye.lookAt(0, 0, 0);
     
-    // Controls
     const controls = new THREE.OrbitControls(cameraTop, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
@@ -279,54 +274,39 @@
     scene.add(axisLine);
 
     // --- 3. Objects ---
-
-    // Materials
     const lensMat = new THREE.MeshPhysicalMaterial({
-        color: 0xaaccff,
-        transmission: 0.95,
-        opacity: 1,
-        metalness: 0,
-        roughness: 0,
-        ior: 1.5,
-        thickness: 3.0,
-        clearcoat: 1.0,
-        side: THREE.DoubleSide
+        color: 0xaaccff, transmission: 0.95, opacity: 1, metalness: 0, roughness: 0,
+        ior: 1.5, thickness: 3.0, clearcoat: 1.0, side: THREE.DoubleSide
     });
     
-    const lensRimMat = new THREE.MeshStandardMaterial({
-        color: 0x445566,
-        roughness: 0.4,
-        metalness: 0.8
-    });
-
+    const lensRimMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.4, metalness: 0.8 });
     const objectMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x440000 });
     const imageMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, emissive: 0x001144, transparent: true, opacity: 0.9 });
     
     const rayMat = new THREE.LineBasicMaterial({ color: 0xffdd00, linewidth: 1, transparent: true, opacity: 0.6 });
     const virtualRayMat = new THREE.LineDashedMaterial({ color: 0xaaaaaa, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 });
 
-    // Multi-color materials for 3D Knot rays
     const rayColors = [0xff4444, 0x44ff44, 0x44ffff, 0xff44ff];
     const rayMaterials = rayColors.map(c => new THREE.LineBasicMaterial({ color: c, linewidth: 1, transparent: true, opacity: 0.7 }));
     const virtualRayMaterials = rayColors.map(c => new THREE.LineDashedMaterial({ color: c, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 }));
 
     function create3DArrow(material, name) {
         const group = new THREE.Group();
+        // Pivot is at (0,0,0)
         const stemGeo = new THREE.CylinderGeometry(0.3, 0.3, 1, 16);
-        stemGeo.translate(0, 0.5, 0); 
+        stemGeo.translate(0, 0.5, 0); // Stem 0 to 1
         const stem = new THREE.Mesh(stemGeo, material);
         group.add(stem);
         const headGeo = new THREE.ConeGeometry(0.8, 1.2, 16);
-        headGeo.translate(0, 0.6, 0); 
+        headGeo.translate(0, 0.6, 0); // Head starts at 0, height 1.2. Translate to align base at 0
         const head = new THREE.Mesh(headGeo, material);
-        head.position.y = 1; 
+        head.position.y = 1; // Head base at 1. Tip at 2.2
         group.add(head);
         group.name = name;
         return group;
     }
 
     function create3DKnot(material, name) {
-        // Torus Knot for "Complex 3D Object"
         const geo = new THREE.TorusKnotGeometry(1, 0.3, 64, 16);
         const mesh = new THREE.Mesh(geo, material);
         const group = new THREE.Group();
@@ -339,18 +319,15 @@
     const lensGroup = new THREE.Group();
     scene.add(lensGroup);
 
-    // 1. Convex Lens
     const convexGeo = new THREE.SphereGeometry(14, 64, 32);
     const convexMesh = new THREE.Mesh(convexGeo, lensMat);
     lensGroup.add(convexMesh);
 
-    // 2. Concave Lens (Lathe)
     const concaveProfile = [];
     const stepsLathe = 20;
     const R_lens = 14;
     const T_center = 1.0; 
     const T_edge = 5.0;   
-    
     for (let i = 0; i <= stepsLathe; i++) {
         const r = (i / stepsLathe) * R_lens; 
         const halfThick = (T_center + (T_edge - T_center) * (r/R_lens)**2) / 2;
@@ -361,26 +338,22 @@
         const halfThick = (T_center + (T_edge - T_center) * (r/R_lens)**2) / 2;
         concaveProfile.push(new THREE.Vector2(r, -halfThick));
     }
-    
     const concaveGeo = new THREE.LatheGeometry(concaveProfile, 32);
     const concaveMesh = new THREE.Mesh(concaveGeo, lensMat);
     concaveMesh.rotation.z = -Math.PI / 2;
     concaveMesh.visible = false;
     lensGroup.add(concaveMesh);
 
-    // Rim
     const rimGeo = new THREE.TorusGeometry(14, 0.3, 32, 100);
     const rimMesh = new THREE.Mesh(rimGeo, lensRimMat);
     rimMesh.rotation.y = Math.PI / 2;
     lensGroup.add(rimMesh);
-    
     lensGroup.traverse(c => { c.layers.enableAll(); });
 
-    // --- OBJECTS (Arrow & Knot) ---
+    // --- OBJECTS ---
     const objGroup = new THREE.Group();
     scene.add(objGroup);
 
-    // 1. Arrow Objects
     const objArrow = create3DArrow(objectMat, "ObjectArrow");
     const baseSphere = new THREE.Mesh(new THREE.SphereGeometry(0.4), objectMat);
     objArrow.add(baseSphere);
@@ -391,14 +364,11 @@
     imgArrow.add(imgBaseSphere);
     objGroup.add(imgArrow);
 
-    // 2. Knot Objects
     const objKnot = create3DKnot(objectMat, "ObjectKnot");
     objGroup.add(objKnot);
-    
     const imgKnot = create3DKnot(imageMat, "ImageKnot");
     objGroup.add(imgKnot);
     
-    // Initially hide knot
     objKnot.visible = false;
     imgKnot.visible = false;
 
@@ -412,15 +382,13 @@
     scene.add(fPoint1);
     scene.add(fPoint2);
 
-    // RAYS Group
     const raysGroup = new THREE.Group();
     raysGroup.layers.set(0);
     scene.add(raysGroup);
 
     // --- 4. Logic & Simulation ---
-
     let currentLensType = 'convex';
-    let currentObjType = 'arrow'; // 'arrow' or 'knot'
+    let currentObjType = 'arrow';
 
     const ui = {
         dist: document.getElementById('input-dist'),
@@ -428,11 +396,9 @@
         offsetZ: document.getElementById('input-offset-z'),
         focal: document.getElementById('input-focal'),
         height: document.getElementById('input-height'),
-        // Rotation inputs
         rotX: document.getElementById('input-rot-x'),
         rotY: document.getElementById('input-rot-y'),
         rotZ: document.getElementById('input-rot-z'),
-        // Labels
         valDist: document.getElementById('val-dist'),
         valOffsetY: document.getElementById('val-offset-y'),
         valOffsetZ: document.getElementById('val-offset-z'),
@@ -441,7 +407,6 @@
         valRotX: document.getElementById('val-rot-x'),
         valRotY: document.getElementById('val-rot-y'),
         valRotZ: document.getElementById('val-rot-z'),
-        
         infoType: document.getElementById('info-type'),
         infoMag: document.getElementById('info-mag'),
         btnConvex: document.getElementById('btn-convex'),
@@ -451,7 +416,6 @@
         descText: document.getElementById('text-lens-desc')
     };
 
-    // Lens Toggle
     function setLensType(type) {
         currentLensType = type;
         if (type === 'convex') {
@@ -470,13 +434,11 @@
         updateSimulation();
     }
     
-    // Object Toggle
     function setObjType(type) {
         currentObjType = type;
         if (type === 'arrow') {
             ui.btnObjArrow.classList.add('active');
             ui.btnObjKnot.classList.remove('active');
-            
             objArrow.visible = true;
             imgArrow.visible = true;
             objKnot.visible = false;
@@ -484,7 +446,6 @@
         } else {
             ui.btnObjArrow.classList.remove('active');
             ui.btnObjKnot.classList.add('active');
-            
             objArrow.visible = false;
             imgArrow.visible = false;
             objKnot.visible = true;
@@ -498,27 +459,49 @@
     ui.btnObjArrow.addEventListener('click', () => setObjType('arrow'));
     ui.btnObjKnot.addEventListener('click', () => setObjType('knot'));
 
+    // [New] Core Optical Calculation Function
+    // Calculates the image position for a given object point (world coordinates)
+    function computeImagePos(worldPoint, f) {
+        // Optical Axis is X. Lens is at x=0. Object usually at x < 0.
+        // We define distance 'do' as positive distance from lens.
+        // But for calculation, we can stick to Cartesian: x_obj.
+        // Lens formula: 1/do + 1/di = 1/f
+        // do = -x_obj (if object is left)
+        // di = (f * do) / (do - f)
+        // Image x = di
+        // Magnification M = -di/do
+        // Image y = Object y * M
+        // Image z = Object z * M
+        
+        const do_dist = -worldPoint.x;
+        
+        // Singularity check (close to focal point)
+        if (Math.abs(do_dist - f) < 0.01) {
+             return new THREE.Vector3(10000 * Math.sign(f), worldPoint.y * 100, worldPoint.z * 100); // Infinity
+        }
+
+        const di_dist = (f * do_dist) / (do_dist - f);
+        const M = -di_dist / do_dist;
+        
+        // Resulting image point
+        return new THREE.Vector3(di_dist, worldPoint.y * M, worldPoint.z * M);
+    }
+
     function updateSimulation() {
         const do_val = parseFloat(ui.dist.value);
         let f_val_mag = parseFloat(ui.focal.value);
-        
         let f_val = (currentLensType === 'convex') ? f_val_mag : -f_val_mag;
-
         const h_scale = parseFloat(ui.height.value);
         const off_y = parseFloat(ui.offsetY.value); 
         const off_z = parseFloat(ui.offsetZ.value);
         
-        // Rotation Values (in degrees)
         const rot_x_deg = parseFloat(ui.rotX.value);
         const rot_y_deg = parseFloat(ui.rotY.value);
         const rot_z_deg = parseFloat(ui.rotZ.value);
-
-        // Convert to Radians
         const rad_x = THREE.MathUtils.degToRad(rot_x_deg);
         const rad_y = THREE.MathUtils.degToRad(rot_y_deg);
         const rad_z = THREE.MathUtils.degToRad(rot_z_deg);
 
-        // Update Labels
         ui.valDist.textContent = do_val.toFixed(1);
         ui.valOffsetY.textContent = off_y.toFixed(1);
         ui.valOffsetZ.textContent = off_z.toFixed(1);
@@ -528,7 +511,7 @@
         ui.valRotY.textContent = rot_y_deg + "°";
         ui.valRotZ.textContent = rot_z_deg + "°";
 
-        // Lens Shape Update
+        // Lens Shape
         if (currentLensType === 'convex') {
             const thicknessFactor = 3.0 / f_val_mag; 
             convexMesh.scale.set(thicknessFactor, 1, 1);
@@ -537,17 +520,13 @@
             concaveMesh.scale.set(1, scaleFactor, 1); 
         }
 
-        // --- Object Positioning & Rotation ---
+        // Object Transform
         const objPos = new THREE.Vector3(-do_val, off_y, off_z);
         const objRotation = new THREE.Euler(rad_x, rad_y, rad_z, 'XYZ');
-        
-        // Base Scale for Arrow
         const arrowScale = h_scale / 2.0; 
-        
-        // Scale for Knot (TorusKnot radius 1)
         const knotScale = h_scale / 2.5;
 
-        // Apply to Active Object
+        // Apply to Objects
         if (currentObjType === 'arrow') {
             objArrow.position.copy(objPos);
             objArrow.scale.set(arrowScale, arrowScale, arrowScale);
@@ -562,35 +541,29 @@
         fPoint1.position.set(-f_val_mag, 0, 0);
         fPoint2.position.set(f_val_mag, 0, 0);
 
-        // --- Image Calculation ---
-        let di_val = 0;
-        let magnification = 0;
+        // --- Optical Calculation for Center (for UI info) ---
+        let center_di_val = 0;
+        let center_magnification = 0;
         let isReal = true;
         let isParallel = false;
 
-        // [Logic] Handle Singularity (Distance = 0)
-        // With min=5, this condition (do_val < 0.1) won't typically be met via slider, 
-        // but kept for robustness if programmatic value changes.
+        // Simple calc for center just to get info state
         if (Math.abs(do_val) < 0.1) {
-            // If Object is at the lens center, Image is at the center, Mag is 1
             isParallel = false;
-            di_val = 0;
-            magnification = 1;
+            center_magnification = 1;
             ui.infoType.textContent = "렌즈 중심 (일치)";
             ui.infoType.style.color = "#ffffff";
             isReal = false; 
         } 
         else if (currentLensType === 'convex' && Math.abs(do_val - f_val) < 0.1) {
             isParallel = true;
-            di_val = 5000; 
-            magnification = 100;
             ui.infoType.textContent = "초점 위 (상 없음)";
             ui.infoType.style.color = "#ffff00";
         } else {
-            di_val = (f_val * do_val) / (do_val - f_val);
-            magnification = -di_val / do_val; 
+            center_di_val = (f_val * do_val) / (do_val - f_val);
+            center_magnification = -center_di_val / do_val; 
 
-            if (di_val > 0) {
+            if (center_di_val > 0) {
                 isReal = true;
                 ui.infoType.textContent = "실상 (도립)";
                 ui.infoType.style.color = "#4ade80"; 
@@ -600,91 +573,118 @@
                 ui.infoType.style.color = "#f87171"; 
             }
         }
+        ui.infoMag.textContent = Math.abs(center_magnification).toFixed(2) + "배";
 
-        // Apply Image Position if not parallel
-        if (!isParallel) {
-            const imgX = di_val;
-            const imgY = off_y * magnification;
-            const imgZ = off_z * magnification;
-            
-            // Set Active Image Position
-            let targetImg = (currentObjType === 'arrow') ? imgArrow : imgKnot;
-            let targetScale = (currentObjType === 'arrow') ? arrowScale : knotScale;
-            
-            targetImg.position.set(imgX, imgY, imgZ);
-            
-            const absMag = Math.abs(magnification);
-            targetImg.scale.set(targetScale * absMag, targetScale * absMag, targetScale * absMag);
+        // --- Advanced Image Placement (Fitting) ---
+        // Instead of just scaling the mesh, we calculate Head and Tail image positions 
+        // and fit the mesh between them. This handles Z-rotation distortion correctly.
 
-            // Orientation Logic (Applying Rotation)
-            // 1. Set basic user rotation first
-            targetImg.rotation.copy(objRotation);
-
-            if (magnification < 0) {
-                // Real Image (Inverted)
-                targetImg.rotateX(Math.PI); 
-            } 
-        }
+        let targetImg = (currentObjType === 'arrow') ? imgArrow : imgKnot;
         
-        ui.infoMag.textContent = Math.abs(magnification).toFixed(2) + "배";
-        
-        // Visibility
-        const activeImg = (currentObjType === 'arrow') ? imgArrow : imgKnot;
-        activeImg.visible = !isParallel;
-
+        targetImg.visible = !isParallel;
         if (!isReal) {
-             activeImg.children.forEach(m => { if(m.material) m.material.opacity = 0.5; });
+             targetImg.children.forEach(m => { if(m.material) m.material.opacity = 0.5; });
         } else {
-             activeImg.children.forEach(m => { if(m.material) m.material.opacity = 1.0; });
+             targetImg.children.forEach(m => { if(m.material) m.material.opacity = 1.0; });
+        }
+
+        if (!isParallel) {
+            if (currentObjType === 'arrow') {
+                // 1. Calculate World Position of Object Base and Tip
+                // Arrow pivot is at Base (0,0,0) local
+                const objBaseLocal = new THREE.Vector3(0,0,0);
+                const objTipLocal = new THREE.Vector3(0, 2.2 * arrowScale, 0); // Approx height 2.2 unscaled
+
+                // To World
+                const objBaseWorld = objBaseLocal.clone().applyEuler(objRotation).add(objPos);
+                const objTipWorld = objTipLocal.clone().applyEuler(objRotation).add(objPos);
+
+                // 2. Compute Optical Image Positions
+                const imgBaseWorld = computeImagePos(objBaseWorld, f_val);
+                const imgTipWorld = computeImagePos(objTipWorld, f_val);
+
+                // 3. Fit Image Mesh
+                // Place mesh at Image Base
+                targetImg.position.copy(imgBaseWorld);
+
+                // Orient mesh to point to Image Tip
+                // Original Arrow points Y+ (0,1,0)
+                const imgVector = new THREE.Vector3().subVectors(imgTipWorld, imgBaseWorld);
+                const imgLength = imgVector.length();
+
+                if (imgLength > 0.001) {
+                    const dir = imgVector.clone().normalize();
+                    targetImg.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+                }
+
+                // Scale mesh
+                // Y-scale (Length) determined by distance between calculated points
+                // X, Z scale (Thickness) determined by transverse magnification at the center
+                // Transverse Mag = |center_magnification|
+                // Wait, thickness should scale with local transverse mag, let's use center mag approx for thickness
+                const thicknessScale = arrowScale * Math.abs(center_magnification);
+                
+                // Original height was 2.2 * arrowScale. We want it to be imgLength.
+                // ScaleY * (2.2) = imgLength  (Note: arrowScale is already baked into 2.2 logic? No, geometry is size ~2.2)
+                // Geometry Height is ~2.2.
+                // We want final size to be imgLength.
+                // So scaleY = imgLength / 2.2
+                const geomHeight = 2.2; 
+                targetImg.scale.set(thicknessScale, imgLength / geomHeight, thicknessScale);
+
+            } else {
+                // Knot Logic (Simplified: Just use center mag scaling as it's a blob)
+                // Or we could try to orient it, but it's isotropic-ish.
+                // Let's stick to the previous logic for Knot but update position correctly
+                const imgCenter = computeImagePos(objPos, f_val);
+                targetImg.position.copy(imgCenter);
+                
+                // Rotation
+                targetImg.rotation.copy(objRotation);
+                if (center_magnification < 0) {
+                     targetImg.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), Math.PI);
+                }
+
+                // Scale
+                const absMag = Math.abs(center_magnification);
+                targetImg.scale.set(knotScale * absMag, knotScale * absMag, knotScale * absMag);
+            }
         }
 
         // --- Multi-Ray Tracing ---
-        
-        // Define Source Points (Relative to Object Center)
+        // Ray Source Points
         let sourcePointsLocal = [];
-        
         if (currentObjType === 'arrow') {
-            // Arrow: Just Tip (local y = 2.2 * scale)
             const s = arrowScale;
-            sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * s, 0));
+            sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * s, 0)); // Tip
         } else {
-            // Knot: 4 cardinal points to show 3D nature
             const r = 1.3 * knotScale;
-            sourcePointsLocal.push(new THREE.Vector3(0, r, 0));   // Top
-            sourcePointsLocal.push(new THREE.Vector3(0, -r, 0));  // Bottom
-            sourcePointsLocal.push(new THREE.Vector3(0, 0, r));   // Front/Right
-            sourcePointsLocal.push(new THREE.Vector3(0, 0, -r));  // Back/Left
+            sourcePointsLocal.push(new THREE.Vector3(0, r, 0));   
+            sourcePointsLocal.push(new THREE.Vector3(0, -r, 0));  
+            sourcePointsLocal.push(new THREE.Vector3(0, 0, r));   
+            sourcePointsLocal.push(new THREE.Vector3(0, 0, -r));  
         }
         
-        // Clear Rays First
         while(raysGroup.children.length > 0){ 
             const obj = raysGroup.children.pop();
             if(obj.geometry) obj.geometry.dispose();
             raysGroup.remove(obj); 
         }
 
-        // Trace for each point
         sourcePointsLocal.forEach((localPt, index) => {
-            // 1. Apply Object Rotation to the local point to get "Rotated Local Point"
             const rotatedLocalPt = localPt.clone().applyEuler(objRotation);
-
-            // 2. Convert to World Pos
             const objTip = new THREE.Vector3().copy(rotatedLocalPt).add(objPos);
             
-            // 3. Calculate Image Point World Pos
             let imgTip;
             if (isParallel) {
-                imgTip = new THREE.Vector3(1000, 0, 0);
+                imgTip = new THREE.Vector3(10000 * Math.sign(f_val), 0, 0);
             } else if (Math.abs(do_val) < 0.1) {
-                // At center
                 imgTip = objTip.clone();
             } else {
-                const imgOffset = rotatedLocalPt.clone().multiplyScalar(magnification);
-                const imgCenter = new THREE.Vector3(di_val, off_y * magnification, off_z * magnification);
-                imgTip = new THREE.Vector3().copy(imgCenter).add(imgOffset);
+                // [FIX] Use the EXACT optical formula for the Ray Target as well
+                imgTip = computeImagePos(objTip, f_val);
             }
             
-            // Pass index to select color. -1 means default yellow (Arrow)
             const colorIndex = (currentObjType === 'arrow') ? -1 : index;
             draw3DRays(objTip, imgTip, f_val, isReal, isParallel, colorIndex);
         });
@@ -693,51 +693,64 @@
     }
 
     function draw3DRays(objTip, imgTip, f_val, isReal, isParallel, colorIndex) {
-        
-        // Select Materials based on colorIndex
         let rMat, vMat;
         if (colorIndex === -1) {
-            rMat = rayMat; // Default Yellow
+            rMat = rayMat; 
             vMat = virtualRayMat;
         } else {
             rMat = rayMaterials[colorIndex % rayMaterials.length];
             vMat = virtualRayMaterials[colorIndex % virtualRayMaterials.length];
         }
 
-        // Ray 1: Parallel to Axis -> Refracts through Focus
-        // Important: "Parallel to Axis" ray starts from the object tip and goes parallel to X axis until it hits the lens plane (x=0)
-        // The lens plane intersection is (0, objTip.y, objTip.z)
         const lensHit1 = new THREE.Vector3(0, objTip.y, objTip.z);
         
+        // Ray 1: Parallel to Axis (from tip to lens)
+        // If convex, refracts to focus (f, 0, 0)
+        // If concave, refracts as if coming from focus (f, 0, 0) [f is negative]
+        
+        const focusPoint = new THREE.Vector3(f_val, 0, 0); 
+
         if (currentLensType === 'convex') {
-            const focusPoint = new THREE.Vector3(f_val, 0, 0); 
             const pts1 = [objTip.clone(), lensHit1.clone()];
+            // Direction from lens hit to focus
             const dir1 = new THREE.Vector3().subVectors(focusPoint, lensHit1).normalize();
-            pts1.push(dir1.multiplyScalar(200).add(lensHit1));
+            pts1.push(dir1.multiplyScalar(300).add(lensHit1));
             addLine(pts1, rMat); 
             
-            if (!isReal && !isParallel && Math.abs(parseFloat(ui.dist.value)) > 0.1) {
-                const vPts1 = [imgTip.clone(), lensHit1.clone()];
-                addLine(vPts1, vMat, true); 
+            // Virtual ray extending back to image?
+            // If image is virtual, we draw dashed line from Image to Lens
+            // If image is real, the solid ray connects lens to image naturally.
+            // But let's draw dashed extension if needed for clarity.
+            if (!isParallel && Math.abs(parseFloat(ui.dist.value)) > 0.1) {
+                if (!isReal) {
+                     const vPts1 = [imgTip.clone(), lensHit1.clone()];
+                     addLine(vPts1, vMat, true);
+                }
             }
         } else {
-            const focusPoint = new THREE.Vector3(f_val, 0, 0); 
+            // Concave
             const pts1 = [objTip.clone(), lensHit1.clone()];
-            const dir1 = new THREE.Vector3().subVectors(lensHit1, focusPoint).normalize(); // Diverge
-            pts1.push(dir1.multiplyScalar(200).add(lensHit1));
+            // Diverges as if from focus
+            const dir1 = new THREE.Vector3().subVectors(lensHit1, focusPoint).normalize();
+            pts1.push(dir1.multiplyScalar(300).add(lensHit1));
             addLine(pts1, rMat);
             
-            if (Math.abs(parseFloat(ui.dist.value)) > 0.1) {
-                const vPts1 = [focusPoint.clone(), lensHit1.clone()];
-                addLine(vPts1, vMat, true);
-            }
+            // Virtual trace back to focus
+            const vPts1 = [focusPoint.clone(), lensHit1.clone()];
+            addLine(vPts1, vMat, true);
         }
 
-        // Ray 2: Center (Undeviated)
+        // Ray 2: Through Optical Center (Undeviated)
         const center = new THREE.Vector3(0,0,0);
         const dir2 = new THREE.Vector3().subVectors(center, objTip).normalize();
-        const pts2 = [objTip.clone(), dir2.multiplyScalar(200).add(objTip)];
+        
+        // Draw solid ray through center
+        const pts2 = [objTip.clone(), dir2.multiplyScalar(300).add(objTip)];
         addLine(pts2, rMat);
+
+        // For virtual images, the ray through center is solid, but maybe we want to emphasize the backtrace?
+        // Actually ray through center passes through image point naturally (since image lies on this line).
+        // So no dashed line needed for Ray 2 usually.
     }
 
     function addLine(points, material, isDashed = false) {
@@ -752,15 +765,12 @@
         cameraTop.layers.enable(0);
         cameraTop.layers.enable(1);
         cameraTop.layers.enable(2);
-
         cameraEye.layers.disableAll();
         cameraEye.layers.enable(2); 
         
-        // Visibility Layers
         objArrow.traverse(o => { o.layers.set(1); o.layers.enable(0); });
         imgArrow.traverse(o => { o.layers.set(2); o.layers.enable(0); });
         
-        // Knots
         const objKnot = scene.getObjectByName("ObjectKnot");
         const imgKnot = scene.getObjectByName("ImageKnot");
         if(objKnot) objKnot.traverse(o => { o.layers.set(1); o.layers.enable(0); });
@@ -778,7 +788,6 @@
         divider.style.top = (height - splitY) + "px";
         document.getElementById('label-eye').style.bottom = (splitY - 40) + "px";
 
-        // Top View
         lensMat.stencilWrite = false;
         imageMat.stencilWrite = false;
         lensMat.depthWrite = true; 
@@ -793,16 +802,13 @@
         cameraTop.updateProjectionMatrix();
         renderer.render(scene, cameraTop);
 
-        // Bottom View
         renderer.setViewport(0, 0, width, splitY);
         renderer.setScissor(0, 0, width, splitY);
         renderer.setScissorTest(true);
         renderer.setClearColor(0x050505);
-        
         renderer.clearStencil(); 
         
         const activeMesh = (currentLensType === 'convex') ? convexMesh : concaveMesh;
-        
         activeMesh.renderOrder = 1;
         lensMat.stencilWrite = true;
         lensMat.stencilFunc = THREE.AlwaysStencilFunc; 
@@ -814,9 +820,7 @@
         if(currentLensType === 'convex') concaveMesh.renderOrder = 999; 
         else convexMesh.renderOrder = 999;
         
-        // Determine active image object
         const activeImg = (currentObjType === 'arrow') ? imgArrow : scene.getObjectByName("ImageKnot");
-
         if (activeImg) {
             activeImg.renderOrder = 2; 
             activeImg.traverse(child => {
@@ -831,7 +835,6 @@
         cameraEye.aspect = width / splitY;
         cameraEye.updateProjectionMatrix();
         renderer.render(scene, cameraEye);
-
         lensMat.depthWrite = true;
         lensMat.side = THREE.DoubleSide;
     }
@@ -846,7 +849,6 @@
         }
     });
 
-    // Init
     updateSimulation();
     render();
     </script>
