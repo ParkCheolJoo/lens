@@ -70,6 +70,14 @@
             width: 14px; height: 14px; background: #4ade80; border-radius: 50%;
         }
 
+        /* 체크박스 스타일 */
+        input[type=checkbox] {
+            accent-color: #4ade80;
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
         /* 선택 버튼 스타일 */
         .selector-row {
             display: flex;
@@ -177,24 +185,38 @@
             <input type="range" id="input-offset-z" min="-15" max="15" step="0.5" value="0">
         </div>
 
-        <!-- Rotation Control -->
+        <!-- Rotation Control with Legend -->
         <div class="slider-group">
-            <div class="font-bold text-sm text-white mb-2">🔄 회전 (Rotation)</div>
+            <div class="flex justify-between items-center mb-2">
+                <div class="font-bold text-sm text-white">🔄 회전 (Rotation)</div>
+                <!-- Checkbox to toggle axes -->
+                <label class="flex items-center space-x-1 cursor-pointer select-none">
+                    <!-- [FIX] Removed 'checked' attribute so it starts unchecked -->
+                    <input type="checkbox" id="check-show-axes">
+                    <span class="text-xs text-gray-300 hover:text-white">축 보기</span>
+                </label>
+            </div>
+            
+            <div class="text-[10px] text-gray-400 font-mono text-right mb-2">
+                <span class="text-red-400 mr-1">R:X</span> 
+                <span class="text-green-400 mr-1">G:Y</span> 
+                <span class="text-blue-400">B:Z</span>
+            </div>
             
             <div class="slider-label">
-                <span>X축 회전 (Pitch)</span>
+                <span class="text-red-300">X축 (Pitch)</span>
                 <span id="val-rot-x" class="font-mono text-blue-300">0°</span>
             </div>
             <input type="range" id="input-rot-x" min="-360" max="360" step="5" value="0">
 
             <div class="slider-label mt-2">
-                <span>Y축 회전 (Yaw)</span>
+                <span class="text-green-300">Y축 (Yaw)</span>
                 <span id="val-rot-y" class="font-mono text-blue-300">0°</span>
             </div>
             <input type="range" id="input-rot-y" min="-360" max="360" step="5" value="0">
 
             <div class="slider-label mt-2">
-                <span>Z축 회전 (Roll)</span>
+                <span class="text-blue-300">Z축 (Roll)</span>
                 <span id="val-rot-z" class="font-mono text-blue-300">0°</span>
             </div>
             <input type="range" id="input-rot-z" min="-360" max="360" step="5" value="0">
@@ -290,18 +312,92 @@
     const rayMaterials = rayColors.map(c => new THREE.LineBasicMaterial({ color: c, linewidth: 1, transparent: true, opacity: 0.7 }));
     const virtualRayMaterials = rayColors.map(c => new THREE.LineDashedMaterial({ color: c, dashSize: 2, gapSize: 1, scale: 1, transparent: true, opacity: 0.4 }));
 
+    // [New] Elegant World Axis Gizmo Creator (Static, HUD Style)
+    function createNiceAxes(size) {
+        const group = new THREE.Group();
+        const axisRadius = 0.05 * size; 
+        const axisLen = size;
+        const coneHeight = 0.2 * size;
+        const coneRadius = 0.12 * size;
+
+        // Use BasicMaterial with transparent/opacity for Hologram effect
+        // depthTest: false to ensure it renders on top of the object
+        const commonMat = { depthTest: false, transparent: true, opacity: 0.7, side: THREE.DoubleSide };
+        
+        const matR = new THREE.MeshBasicMaterial({ ...commonMat, color: 0xff4444 }); // X (Red)
+        const matG = new THREE.MeshBasicMaterial({ ...commonMat, color: 0x44ff44 }); // Y (Green)
+        const matB = new THREE.MeshBasicMaterial({ ...commonMat, color: 0x4488ff }); // Z (Blue)
+        const matW = new THREE.MeshBasicMaterial({ ...commonMat, color: 0xffffff, opacity: 0.5 }); // Center
+
+        // To control render order (ensure it draws last, on top of object)
+        const setRenderOrder = (mesh) => { mesh.renderOrder = 999; };
+
+        // Center Sphere
+        const sphere = new THREE.Mesh(new THREE.SphereGeometry(axisRadius * 2.0), matW);
+        setRenderOrder(sphere);
+        group.add(sphere);
+
+        // X Axis (Red) - Points +X
+        const xGeo = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLen, 8);
+        xGeo.translate(0, axisLen/2, 0);
+        xGeo.rotateZ(-Math.PI/2);
+        const xMesh = new THREE.Mesh(xGeo, matR);
+        setRenderOrder(xMesh);
+        group.add(xMesh);
+        
+        const xCone = new THREE.Mesh(new THREE.ConeGeometry(coneRadius, coneHeight, 16), matR);
+        xCone.position.set(axisLen, 0, 0);
+        xCone.rotation.z = -Math.PI/2;
+        setRenderOrder(xCone);
+        group.add(xCone);
+
+        // Y Axis (Green) - Points +Y
+        const yGeo = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLen, 8);
+        yGeo.translate(0, axisLen/2, 0);
+        const yMesh = new THREE.Mesh(yGeo, matG);
+        setRenderOrder(yMesh);
+        group.add(yMesh);
+        
+        const yCone = new THREE.Mesh(new THREE.ConeGeometry(coneRadius, coneHeight, 16), matG);
+        yCone.position.set(0, axisLen, 0);
+        setRenderOrder(yCone);
+        group.add(yCone);
+
+        // Z Axis (Blue) - Points +Z
+        const zGeo = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLen, 8);
+        zGeo.translate(0, axisLen/2, 0);
+        zGeo.rotateX(Math.PI/2);
+        const zMesh = new THREE.Mesh(zGeo, matB);
+        setRenderOrder(zMesh);
+        group.add(zMesh);
+        
+        const zCone = new THREE.Mesh(new THREE.ConeGeometry(coneRadius, coneHeight, 16), matB);
+        zCone.position.set(0, 0, axisLen);
+        zCone.rotation.x = Math.PI/2;
+        setRenderOrder(zCone);
+        group.add(zCone);
+
+        return group;
+    }
+
+    // Add Global Gizmo to Scene (Independent from Objects)
+    // Size 4.0 for clear visibility
+    const refGizmo = createNiceAxes(4.0);
+    refGizmo.layers.set(0); 
+    scene.add(refGizmo);
+
     function create3DArrow(material, name) {
         const group = new THREE.Group();
-        // Pivot is at (0,0,0)
         const stemGeo = new THREE.CylinderGeometry(0.3, 0.3, 1, 16);
-        stemGeo.translate(0, 0.5, 0); // Stem 0 to 1
+        stemGeo.translate(0, 0.5, 0); 
         const stem = new THREE.Mesh(stemGeo, material);
         group.add(stem);
         const headGeo = new THREE.ConeGeometry(0.8, 1.2, 16);
-        headGeo.translate(0, 0.6, 0); // Head starts at 0, height 1.2. Translate to align base at 0
+        headGeo.translate(0, 0.6, 0); 
         const head = new THREE.Mesh(headGeo, material);
-        head.position.y = 1; // Head base at 1. Tip at 2.2
+        head.position.y = 1; 
         group.add(head);
+        
         group.name = name;
         return group;
     }
@@ -311,6 +407,7 @@
         const mesh = new THREE.Mesh(geo, material);
         const group = new THREE.Group();
         group.add(mesh);
+
         group.name = name;
         return group;
     }
@@ -413,6 +510,7 @@
         btnConcave: document.getElementById('btn-concave'),
         btnObjArrow: document.getElementById('btn-obj-arrow'),
         btnObjKnot: document.getElementById('btn-obj-knot'),
+        checkAxes: document.getElementById('check-show-axes'), // [New]
         descText: document.getElementById('text-lens-desc')
     };
 
@@ -458,20 +556,17 @@
     ui.btnConcave.addEventListener('click', () => setLensType('concave'));
     ui.btnObjArrow.addEventListener('click', () => setObjType('arrow'));
     ui.btnObjKnot.addEventListener('click', () => setObjType('knot'));
+    
+    // [New] Toggle Listener
+    ui.checkAxes.addEventListener('change', () => {
+        refGizmo.visible = ui.checkAxes.checked;
+    });
 
     // [New] Core Optical Calculation Function
-    // Calculates the image position for a given object point (world coordinates)
     function computeImagePos(worldPoint, f) {
-        // Optical Axis is X. Lens is at x=0. Object usually at x < 0.
-        // We define distance 'do' as positive distance from lens.
-        // But for calculation, we can stick to Cartesian: x_obj.
+        // Optical Axis is X. Lens is at x=0.
         // Lens formula: 1/do + 1/di = 1/f
         // do = -x_obj (if object is left)
-        // di = (f * do) / (do - f)
-        // Image x = di
-        // Magnification M = -di/do
-        // Image y = Object y * M
-        // Image z = Object z * M
         
         const do_dist = -worldPoint.x;
         
@@ -522,7 +617,9 @@
 
         // Object Transform
         const objPos = new THREE.Vector3(-do_val, off_y, off_z);
-        const objRotation = new THREE.Euler(rad_x, rad_y, rad_z, 'XYZ');
+        // [NOTE] Using ZYX order to facilitate typical object manipulation
+        const objRotation = new THREE.Euler(rad_x, rad_y, rad_z, 'ZYX');
+        
         const arrowScale = h_scale / 2.0; 
         const knotScale = h_scale / 2.5;
 
@@ -536,6 +633,14 @@
             objKnot.scale.set(knotScale, knotScale, knotScale);
             objKnot.rotation.copy(objRotation);
         }
+
+        // Update Global Reference Gizmo Position
+        // [FIX] Gizmo follows object position but stays axis-aligned (Static Rotation)
+        // [FIX] Using overlay material ensures visibility even inside object
+        refGizmo.position.copy(objPos);
+        refGizmo.rotation.set(0, 0, 0); // Always World Aligned
+        // Apply Visibility based on checkbox
+        refGizmo.visible = ui.checkAxes.checked;
 
         // Focal Points
         fPoint1.position.set(-f_val_mag, 0, 0);
@@ -576,9 +681,6 @@
         ui.infoMag.textContent = Math.abs(center_magnification).toFixed(2) + "배";
 
         // --- Advanced Image Placement (Fitting) ---
-        // Instead of just scaling the mesh, we calculate Head and Tail image positions 
-        // and fit the mesh between them. This handles Z-rotation distortion correctly.
-
         let targetImg = (currentObjType === 'arrow') ? imgArrow : imgKnot;
         
         targetImg.visible = !isParallel;
@@ -590,10 +692,10 @@
 
         if (!isParallel) {
             if (currentObjType === 'arrow') {
+                // ... (Arrow Logic remains same) ...
                 // 1. Calculate World Position of Object Base and Tip
-                // Arrow pivot is at Base (0,0,0) local
                 const objBaseLocal = new THREE.Vector3(0,0,0);
-                const objTipLocal = new THREE.Vector3(0, 2.2 * arrowScale, 0); // Approx height 2.2 unscaled
+                const objTipLocal = new THREE.Vector3(0, 2.2 * arrowScale, 0); 
 
                 // To World
                 const objBaseWorld = objBaseLocal.clone().applyEuler(objRotation).add(objPos);
@@ -604,11 +706,8 @@
                 const imgTipWorld = computeImagePos(objTipWorld, f_val);
 
                 // 3. Fit Image Mesh
-                // Place mesh at Image Base
                 targetImg.position.copy(imgBaseWorld);
 
-                // Orient mesh to point to Image Tip
-                // Original Arrow points Y+ (0,1,0)
                 const imgVector = new THREE.Vector3().subVectors(imgTipWorld, imgBaseWorld);
                 const imgLength = imgVector.length();
 
@@ -617,37 +716,70 @@
                     targetImg.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
                 }
 
-                // Scale mesh
-                // Y-scale (Length) determined by distance between calculated points
-                // X, Z scale (Thickness) determined by transverse magnification at the center
-                // Transverse Mag = |center_magnification|
-                // Wait, thickness should scale with local transverse mag, let's use center mag approx for thickness
                 const thicknessScale = arrowScale * Math.abs(center_magnification);
-                
-                // Original height was 2.2 * arrowScale. We want it to be imgLength.
-                // ScaleY * (2.2) = imgLength  (Note: arrowScale is already baked into 2.2 logic? No, geometry is size ~2.2)
-                // Geometry Height is ~2.2.
-                // We want final size to be imgLength.
-                // So scaleY = imgLength / 2.2
                 const geomHeight = 2.2; 
                 targetImg.scale.set(thicknessScale, imgLength / geomHeight, thicknessScale);
 
             } else {
-                // Knot Logic (Simplified: Just use center mag scaling as it's a blob)
-                // Or we could try to orient it, but it's isotropic-ish.
-                // Let's stick to the previous logic for Knot but update position correctly
-                const imgCenter = computeImagePos(objPos, f_val);
-                targetImg.position.copy(imgCenter);
+                // [FIX] Advanced Knot Fitting Logic
+                const geomRadius = 1.3; 
+                const r = geomRadius * knotScale; 
                 
-                // Rotation
-                targetImg.rotation.copy(objRotation);
-                if (center_magnification < 0) {
-                     targetImg.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), Math.PI);
-                }
+                // 1. Define 4 cardinal points in Local Space (matching ray sources)
+                const ptTop = new THREE.Vector3(0, r, 0);
+                const ptBot = new THREE.Vector3(0, -r, 0);
+                const ptFront = new THREE.Vector3(0, 0, r);
+                const ptBack = new THREE.Vector3(0, 0, -r);
 
-                // Scale
-                const absMag = Math.abs(center_magnification);
-                targetImg.scale.set(knotScale * absMag, knotScale * absMag, knotScale * absMag);
+                // 2. Transform to World Space (Apply Object Rotation & Position)
+                const wTop = ptTop.clone().applyEuler(objRotation).add(objPos);
+                const wBot = ptBot.clone().applyEuler(objRotation).add(objPos);
+                const wFront = ptFront.clone().applyEuler(objRotation).add(objPos);
+                const wBack = ptBack.clone().applyEuler(objRotation).add(objPos);
+
+                // 3. Compute Image Positions for all 4 points
+                const iTop = computeImagePos(wTop, f_val);
+                const iBot = computeImagePos(wBot, f_val);
+                const iFront = computeImagePos(wFront, f_val);
+                const iBack = computeImagePos(wBack, f_val);
+                
+                // 4. Set Mesh Position (Use Image Center)
+                const wCenter = new THREE.Vector3(0,0,0).applyEuler(objRotation).add(objPos);
+                const iCenter = computeImagePos(wCenter, f_val);
+                targetImg.position.copy(iCenter);
+
+                // 5. Orientation Fitting
+                // Calculate distorted vectors in image space
+                const vY = new THREE.Vector3().subVectors(iTop, iBot);     // Vertical span
+                const vZ = new THREE.Vector3().subVectors(iFront, iBack);  // Depth span
+
+                // Construct a rotation matrix to align mesh Y to vY and mesh Z roughly to vZ
+                const yAxis = vY.clone().normalize();
+                let zAxis = vZ.clone().normalize();
+                
+                // Ensure axes are orthogonal (Gram-Schmidt-like process)
+                // X = Y cross Z
+                const xAxis = new THREE.Vector3().crossVectors(yAxis, zAxis).normalize();
+                // Recalculate Z = X cross Y to ensure perfect orthogonality
+                zAxis.crossVectors(xAxis, yAxis).normalize();
+
+                const rotMatrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+                targetImg.quaternion.setFromRotationMatrix(rotMatrix);
+
+                // 6. Scale Fitting
+                // Scale dimensions to match the distance between projected points
+                // Base diameter is 2 * geomRadius
+                const lenY = vY.length();
+                const lenZ = vZ.length();
+                
+                // For X (Width), we use center magnification as we don't track Left/Right rays
+                const scaleX = knotScale * Math.abs(center_magnification);
+                
+                targetImg.scale.set(
+                    scaleX, 
+                    lenY / (2 * geomRadius), 
+                    lenZ / (2 * geomRadius)
+                );
             }
         }
 
@@ -658,11 +790,14 @@
             const s = arrowScale;
             sourcePointsLocal.push(new THREE.Vector3(0, 2.2 * s, 0)); // Tip
         } else {
+            // Knot: 4 cardinal points
+            // IMPORTANT: The first point (index 0) MUST correspond to the 'Top' point used in geometry fitting above (Y+)
+            // to ensure the visual ray matches the mesh distortion.
             const r = 1.3 * knotScale;
-            sourcePointsLocal.push(new THREE.Vector3(0, r, 0));   
-            sourcePointsLocal.push(new THREE.Vector3(0, -r, 0));  
-            sourcePointsLocal.push(new THREE.Vector3(0, 0, r));   
-            sourcePointsLocal.push(new THREE.Vector3(0, 0, -r));  
+            sourcePointsLocal.push(new THREE.Vector3(0, r, 0));   // Top (Matches fitting logic)
+            sourcePointsLocal.push(new THREE.Vector3(0, -r, 0));  // Bottom
+            sourcePointsLocal.push(new THREE.Vector3(0, 0, r));   // Front
+            sourcePointsLocal.push(new THREE.Vector3(0, 0, -r));  // Back
         }
         
         while(raysGroup.children.length > 0){ 
@@ -703,24 +838,14 @@
         }
 
         const lensHit1 = new THREE.Vector3(0, objTip.y, objTip.z);
-        
-        // Ray 1: Parallel to Axis (from tip to lens)
-        // If convex, refracts to focus (f, 0, 0)
-        // If concave, refracts as if coming from focus (f, 0, 0) [f is negative]
-        
         const focusPoint = new THREE.Vector3(f_val, 0, 0); 
 
         if (currentLensType === 'convex') {
             const pts1 = [objTip.clone(), lensHit1.clone()];
-            // Direction from lens hit to focus
             const dir1 = new THREE.Vector3().subVectors(focusPoint, lensHit1).normalize();
             pts1.push(dir1.multiplyScalar(300).add(lensHit1));
             addLine(pts1, rMat); 
             
-            // Virtual ray extending back to image?
-            // If image is virtual, we draw dashed line from Image to Lens
-            // If image is real, the solid ray connects lens to image naturally.
-            // But let's draw dashed extension if needed for clarity.
             if (!isParallel && Math.abs(parseFloat(ui.dist.value)) > 0.1) {
                 if (!isReal) {
                      const vPts1 = [imgTip.clone(), lensHit1.clone()];
@@ -728,29 +853,19 @@
                 }
             }
         } else {
-            // Concave
             const pts1 = [objTip.clone(), lensHit1.clone()];
-            // Diverges as if from focus
             const dir1 = new THREE.Vector3().subVectors(lensHit1, focusPoint).normalize();
             pts1.push(dir1.multiplyScalar(300).add(lensHit1));
             addLine(pts1, rMat);
             
-            // Virtual trace back to focus
             const vPts1 = [focusPoint.clone(), lensHit1.clone()];
             addLine(vPts1, vMat, true);
         }
 
-        // Ray 2: Through Optical Center (Undeviated)
         const center = new THREE.Vector3(0,0,0);
         const dir2 = new THREE.Vector3().subVectors(center, objTip).normalize();
-        
-        // Draw solid ray through center
         const pts2 = [objTip.clone(), dir2.multiplyScalar(300).add(objTip)];
         addLine(pts2, rMat);
-
-        // For virtual images, the ray through center is solid, but maybe we want to emphasize the backtrace?
-        // Actually ray through center passes through image point naturally (since image lies on this line).
-        // So no dashed line needed for Ray 2 usually.
     }
 
     function addLine(points, material, isDashed = false) {
